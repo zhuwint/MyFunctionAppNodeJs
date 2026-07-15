@@ -1,8 +1,11 @@
 # Deployment Guide
 
+---
+
 ## Deploy the FunctionApp to Azure
 
 ### Prerequisites
+
 - [Azure CLI](https://docs.microsoft.com/cli/azure/install-azure-cli)
 - [Azure Functions Core Tools](https://docs.microsoft.com/azure/azure-functions/functions-run-local) v4
 
@@ -20,9 +23,7 @@
 |---|---|
 | Greeting API | `https://myfunctionappnodejs.azurewebsites.net/api/satdemofunc/{username}` |
 
-> Returns a full interactive HTML page with particle animation, neon-styled glassmorphism card, shimmer greeting text, and confetti effects. The username from the URL path is auto-filled and greeted on load.
-
-> **`host.json`** must set `"routePrefix": ""` in `extensions.http` to serve at `/api/satdemofunc/...`.
+Returns a full interactive HTML page with particle animation, neon-styled glassmorphism card, shimmer greeting text, and confetti effects. The username from the URL path is auto-filled and greeted on load.
 
 ### 1. Login
 
@@ -30,7 +31,7 @@
 az login
 ```
 
-### 2. Create Azure Resources (if not already created)
+### 2. Create Azure Resources (first-time only)
 
 ```bash
 # Resource group (skip if using existing)
@@ -72,7 +73,7 @@ az functionapp config appsettings set \
 
 > **Note:** Node.js 20 reached EOL on 2026-04-30. Use version 22 or 24.
 
-### 3. Deploy
+### 3. Publish
 
 ```bash
 cd src/FunctionApp
@@ -89,14 +90,17 @@ curl -s https://myfunctionappnodejs.azurewebsites.net/api/satdemofunc/world \
 # → <title>MyFunctionApp - Node.js</title>
 ```
 
-### 5. Deploy via GitHub Actions
+### 5. GitHub Actions (CI/CD)
 
 The `.github/workflows/main_function-demo.yml` workflow auto-deploys on push to `main`.
 
-Configure these GitHub Secrets for OIDC authentication:
-- `AZURE_CLIENT_ID` — service principal client ID
-- `AZURE_TENANT_ID` — tenant ID (`c42e21ca-5dbb-4777-b47e-b2aabe1cc7fe`)
-- `AZURE_SUBSCRIPTION_ID` — subscription ID (`f7f53d90-8eb1-4b5d-8d05-1e8b0d361330`)
+Configure GitHub Secrets for OIDC authentication:
+
+| Secret | Value |
+|---|---|
+| `AZURE_CLIENT_ID` | Service principal client ID |
+| `AZURE_TENANT_ID` | `c42e21ca-5dbb-4777-b47e-b2aabe1cc7fe` |
+| `AZURE_SUBSCRIPTION_ID` | `f7f53d90-8eb1-4b5d-8d05-1e8b0d361330` |
 
 ---
 
@@ -110,7 +114,7 @@ docker build -t myfunctionappnodejs-web .
 docker run -p 8080:8080 myfunctionappnodejs-web
 ```
 
-Open http://localhost:8080 for the interactive UI, or http://localhost:8080/api/satdemofunc/world for the API HTML page.
+Open `http://localhost:8080` for the interactive UI, or `http://localhost:8080/api/satdemofunc/world` for the API HTML page.
 
 ---
 
@@ -120,12 +124,12 @@ Open http://localhost:8080 for the interactive UI, or http://localhost:8080/api/
 
 ```
 k8s/
-├── namespace.yaml        # myfunctionapp namespace
+├── namespace.yaml        # Creates myfunctionapp namespace
 ├── deployment.yaml       # 3 replicas, RollingUpdate, resource limits, probes
 ├── service.yaml          # ClusterIP on port 80 → container 8080
 ├── ingress.yaml          # nginx ingress + TLS (cert-manager)
 ├── hpa.yaml              # CPU 70% / Memory 80%, 2–10 replicas
-├── kustomization.yaml    # kustomize entry
+├── kustomization.yaml    # Kustomize entry point
 deploy.sh                 # One-click build + push + deploy
 ```
 
@@ -133,7 +137,6 @@ deploy.sh                 # One-click build + push + deploy
 
 - [Docker](https://docs.docker.com/get-docker/)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/)
-- (Optional) [kustomize](https://kustomize.io/) — included in `kubectl apply -k`
 - A container registry (Docker Hub, ACR, ECR, GCR, etc.)
 
 ### Quick Deploy (One Command)
@@ -142,27 +145,27 @@ deploy.sh                 # One-click build + push + deploy
 # Deploy to current kubectl context
 ./deploy.sh
 
-# Or with a remote registry
+# With remote registry
 REGISTRY=myregistry.azurecr.io/ IMAGE_TAG=v1.0.0 ./deploy.sh
 ```
 
 ### Step-by-Step
 
 ```bash
-# 1. Build the image
+# 1. Build
 docker build -t myfunctionappnodejs-web:latest -f src/WebApp/Dockerfile src/WebApp
 
-# 2. Push to registry (replace with your registry)
+# 2. Push to registry
 docker tag myfunctionappnodejs-web:latest myregistry.azurecr.io/myfunctionappnodejs-web:latest
 docker push myregistry.azurecr.io/myfunctionappnodejs-web:latest
 
-# 3. Apply all K8s manifests
+# 3. Deploy
 kubectl apply -k k8s/
 
-# 4. Wait for pods to be ready
+# 4. Wait for rollout
 kubectl -n myfunctionapp rollout status deployment/myfunctionapp-web --timeout=120s
 
-# 5. Check status
+# 5. Status
 kubectl -n myfunctionapp get all,ingress,hpa
 ```
 
@@ -171,12 +174,11 @@ kubectl -n myfunctionapp get all,ingress,hpa
 ```bash
 kubectl -n myfunctionapp port-forward svc/myfunctionapp-web 8080:80
 
-# Open:
-#   http://localhost:8080                  → Landing page
-#   http://localhost:8080/api/satdemofunc/foo  → HTML greeting
+# → http://localhost:8080
+# → http://localhost:8080/api/satdemofunc/foo
 ```
 
-### Expose to Internet (Ingress)
+### Ingress (Internet Exposure)
 
 Edit `k8s/ingress.yaml` — replace `myfunctionapp.example.com` with your domain:
 
@@ -190,14 +192,13 @@ spec:
     - host: myfunctionapp.example.com   # ← your domain
 ```
 
-For automatic TLS with Let's Encrypt, install cert-manager and configure a ClusterIssuer:
+For automatic TLS with Let's Encrypt, install cert-manager:
 
 ```bash
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
-
-# Then set the annotation in ingress.yaml:
-#   cert-manager.io/cluster-issuer: letsencrypt-prod
 ```
+
+Then set the ingress annotation: `cert-manager.io/cluster-issuer: letsencrypt-prod`.
 
 ### Resource Limits
 
@@ -213,7 +214,7 @@ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/do
 | CPU | 70% | 2 | 10 |
 | Memory | 80% | 2 | 10 |
 
-Scale-down stabilization: 5 minutes. Scale-up stabilization: 1 minute.
+Scale-down stabilization: 5 min. Scale-up stabilization: 1 min.
 
 ### Health Probes
 
@@ -235,6 +236,8 @@ az containerapp create \
   --target-port 8080 \
   --ingress external
 ```
+
+---
 
 ## Azure App Service — Container (Alternative)
 
