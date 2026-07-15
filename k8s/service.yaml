@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: myfunctionapp-web
+  namespace: myfunctionapp
+  labels:
+    app.kubernetes.io/name: myfunctionapp-web
+spec:
+  type: ClusterIP
+  selector:
+    app: myfunctionapp-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

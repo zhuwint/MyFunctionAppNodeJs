@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myfunctionapp-web
+  namespace: myfunctionapp
+  labels:
+    app.kubernetes.io/name: myfunctionapp-web
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - myfunctionapp.example.com
+      secretName: myfunctionapp-tls
+  rules:
+    - host: myfunctionapp.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: myfunctionapp-web
+                port:
+                  name: http
