@@ -10,7 +10,25 @@ A demo project showing how to refactor an Azure Functions project into a cross-p
 MyFunctionAppNodeJs/
 ├── src/
 │   ├── FunctionApp/       # Azure Functions (Node.js v4)
+│   │   ├── host.json      # Functions runtime config
+│   │   ├── local.settings.json
+│   │   ├── package.json
+│   │   └── src/
+│   │       ├── index.js           # HTTP trigger entry point
+│   │       ├── index.html         # Interactive UI page
+│   │       └── services/
+│   │           ├── greetingService.js
+│   │           └── greetingTemplate.js
 │   └── WebApp/            # Express.js (container-ready)
+│       ├── Dockerfile
+│       ├── .dockerignore
+│       ├── package.json
+│       └── src/
+│           ├── index.js           # Express server entry point
+│           ├── index.html         # Interactive UI page
+│           └── services/
+│               ├── greetingService.js
+│               └── greetingTemplate.js
 ├── k8s/                   # Kubernetes manifests
 ├── docs/                  # Documentation
 ├── .github/workflows/     # CI/CD pipeline
@@ -44,7 +62,7 @@ Both projects share identical UI (`index.html`) and business logic (`GreetingSer
 
 | Layer | File | Shared? |
 |---|---|---|
-| Framework | `SATDemoFunc.js` / `index.js` | No — framework-specific |
+| Framework | `index.js` | No — framework-specific |
 | Presentation | `index.html` | Yes — byte-for-byte identical |
 | Business | `greetingService.js` | Yes — byte-for-byte identical |
 | Template | `greetingTemplate.js` | Yes — byte-for-byte identical |
@@ -67,13 +85,13 @@ Both projects share identical UI (`index.html`) and business logic (`GreetingSer
 
 | File | Responsibility |
 |---|---|
-| `package.json` | Project config, declares `@azure/functions` |
+| `package.json` | Project config, `"main": "src/index.js"`, declares `@azure/functions` |
 | `host.json` | Functions runtime config (`routePrefix: ""` for clean routes) |
 | `local.settings.json` | Local dev settings |
-| `src/functions/SATDemoFunc.js` | HTTP trigger — reads `index.html`, serves at `/api/satdemofunc/{username}` |
+| `src/index.js` | HTTP trigger — delegates to GreetingService + GreetingTemplate |
 | `src/index.html` | Interactive HTML page (dark theme, particle canvas, neon UI) |
-| `src/services/greetingService.js` | Business logic (class + constructor injection, shared with WebApp) |
-| `src/services/greetingTemplate.js` | HTML page generator (shared with WebApp) |
+| `src/services/greetingService.js` | Business logic (plain class, no framework imports) |
+| `src/services/greetingTemplate.js` | HTML page generator |
 
 ### Request/Response
 
@@ -151,11 +169,11 @@ func azure functionapp publish MyFunctionAppNodeJs
 
 | File | Responsibility |
 |---|---|
-| `package.json` | Project config, declares `express` |
+| `package.json` | Project config, `"main": "src/index.js"`, declares `express` |
 | `Dockerfile` | Docker image build (node:20-alpine) |
 | `.dockerignore` | Docker ignore rules |
-| `src/index.js` | Express server — static files, API route, health probes |
-| `src/public/index.html` | Interactive HTML page (identical to FunctionApp) |
+| `src/index.js` | Express server — home page, API route, health probes |
+| `src/index.html` | Interactive HTML page (identical to FunctionApp) |
 | `src/services/greetingService.js` | Business logic (identical to FunctionApp) |
 | `src/services/greetingTemplate.js` | HTML page generator (identical to FunctionApp) |
 
